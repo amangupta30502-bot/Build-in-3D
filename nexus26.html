@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEXUS '26 — Techfest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050508; --panel:#0b0b12; --ink:#e8e8f0; --dim:#8a8aa0;
+  --neon:#00f0ff; --violet:#8b5cf6; --pink:#ff2e88; --lime:#c8ff3d;
+  --font-d:'Syne',sans-serif; --font-b:'Space Grotesk',sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-behavior:auto;scroll-padding-top:env(safe-area-inset-top,0px)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);overflow-x:hidden;cursor:none}
+::selection{background:var(--neon);color:#000}
+a,button{cursor:none}
+
+/* ---------- cursor ---------- */
+#cursor{position:fixed;top:0;left:0;width:14px;height:14px;border-radius:50%;background:var(--neon);
+  pointer-events:none;z-index:9999;mix-blend-mode:difference;transform:translate(-50%,-50%);transition:width .25s,height .25s,background .25s}
+#cursor.big{width:64px;height:64px;background:#fff}
+#cursor-ring{position:fixed;top:0;left:0;width:42px;height:42px;border-radius:50%;border:1px solid rgba(0,240,255,.5);
+  pointer-events:none;z-index:9998;transform:translate(-50%,-50%)}
+@media (hover:none){#cursor,#cursor-ring{display:none}body,a,button{cursor:auto}}
+
+/* ---------- loader ---------- */
+#loader{position:fixed;inset:0;background:#030308;z-index:10000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:24px;transition:opacity .8s,visibility .8s}
+#loader.done{opacity:0;visibility:hidden}
+#loader .lg{font-family:var(--font-d);font-weight:800;font-size:clamp(2rem,6vw,4rem);letter-spacing:.35em;
+  background:linear-gradient(90deg,var(--neon),var(--violet),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+#bar{width:min(360px,70vw);height:2px;background:#1a1a26;overflow:hidden;border-radius:2px}
+#bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--neon),var(--pink));transition:width .2s}
+#pct{font-size:.8rem;color:var(--dim);letter-spacing:.3em}
+
+/* ---------- fixed 3d canvas ---------- */
+#gl{position:fixed;inset:0;z-index:0}
+
+/* ---------- nav ---------- */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;justify-content:space-between;align-items:center;
+  padding:calc(22px + env(safe-area-inset-top,0px)) clamp(20px,5vw,64px) 22px;mix-blend-mode:difference}
+nav .logo{font-family:var(--font-d);font-weight:800;font-size:1.25rem;letter-spacing:.2em;color:#fff;text-decoration:none}
+nav ul{display:flex;gap:clamp(14px,3vw,38px);list-style:none}
+nav ul a{color:#fff;text-decoration:none;font-size:.78rem;letter-spacing:.25em;text-transform:uppercase;position:relative}
+nav ul a::after{content:'';position:absolute;left:0;bottom:-6px;width:0;height:1px;background:#fff;transition:width .35s}
+nav ul a:hover::after{width:100%}
+
+/* ---------- generic section ---------- */
+section{position:relative;z-index:2}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(20px,5vw,64px)}
+.kicker{font-size:.72rem;letter-spacing:.45em;text-transform:uppercase;color:var(--neon);display:flex;align-items:center;gap:14px}
+.kicker::before{content:'';width:44px;height:1px;background:var(--neon)}
+h2{font-family:var(--font-d);font-weight:800;font-size:clamp(2.4rem,7vw,5.6rem);line-height:.95;margin:22px 0 0;text-transform:uppercase}
+h2 .outline{color:transparent;-webkit-text-stroke:1.5px var(--ink)}
+.reveal{opacity:0;transform:translateY(60px)}
+
+/* ---------- hero ---------- */
+#hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+#hero .titan{font-family:var(--font-d);font-weight:800;line-height:.85;text-transform:uppercase;
+  font-size:clamp(4.2rem,17vw,15rem);letter-spacing:-.02em;position:relative;z-index:3}
+#hero .titan .l{display:inline-block;will-change:transform}
+#hero .titan .stroke{color:transparent;-webkit-text-stroke:2px var(--neon)}
+.hero-sub{margin-top:34px;display:flex;flex-wrap:wrap;gap:28px;align-items:center;z-index:3;position:relative}
+.hero-sub p{max-width:420px;color:var(--dim);line-height:1.7;font-size:.95rem}
+.btn{position:relative;display:inline-block;padding:16px 38px;border:1px solid var(--neon);color:var(--neon);
+  text-decoration:none;font-size:.78rem;letter-spacing:.3em;text-transform:uppercase;overflow:hidden;background:transparent;font-family:var(--font-b)}
+.btn span{position:relative;z-index:2;transition:color .35s}
+.btn::before{content:'';position:absolute;inset:0;background:var(--neon);transform:scaleX(0);transform-origin:right;transition:transform .45s cubic-bezier(.76,0,.24,1)}
+.btn:hover::before{transform:scaleX(1);transform-origin:left}
+.btn:hover span{color:#000}
+#hero .scroll-hint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);font-size:.68rem;letter-spacing:.4em;
+  color:var(--dim);text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:12px;z-index:3}
+#hero .scroll-hint i{width:1px;height:52px;background:linear-gradient(var(--neon),transparent);display:block;animation:drop 1.8s ease-in-out infinite}
+@keyframes drop{0%{transform:scaleY(0);transform-origin:top}55%{transform:scaleY(1);transform-origin:top}56%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+.hud{position:absolute;font-size:.62rem;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;z-index:3}
+.hud.tl{top:110px;left:clamp(20px,5vw,64px)}
+.hud.tr{top:110px;right:clamp(20px,5vw,64px);text-align:right}
+
+/* ---------- marquee ---------- */
+.marquee{overflow:hidden;border-top:1px solid #1c1c28;border-bottom:1px solid #1c1c28;padding:22px 0;background:rgba(5,5,8,.6);backdrop-filter:blur(6px)}
+.marquee .track{display:flex;gap:56px;width:max-content;animation:mq 22s linear infinite;white-space:nowrap}
+.marquee .track span{font-family:var(--font-d);font-weight:700;font-size:clamp(1.2rem,3vw,2rem);text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:56px}
+.marquee .track em{font-style:normal;color:var(--neon);font-size:.8em}
+@keyframes mq{to{transform:translateX(-50%)}}
+
+/* ---------- about ---------- */
+#about{padding:16vh 0}
+#about .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(30px,6vw,90px);align-items:start;margin-top:60px}
+#about .big{font-family:var(--font-d);font-size:clamp(1.5rem,3.2vw,2.4rem);line-height:1.25;font-weight:600}
+#about .big b{color:var(--neon);font-weight:600}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#1c1c28;border:1px solid #1c1c28}
+.stat{background:var(--panel);padding:34px 26px;transition:background .4s}
+.stat:hover{background:#12121e}
+.stat .n{font-family:var(--font-d);font-size:clamp(2rem,4vw,3.2rem);font-weight:800;color:var(--ink)}
+.stat .n em{font-style:normal;color:var(--pink)}
+.stat .t{font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);margin-top:8px}
+
+/* ---------- events ---------- */
+#events{padding:14vh 0}
+#events .head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px}
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2px;margin-top:64px;background:#1c1c28;border:1px solid #1c1c28}
+.ev{background:var(--panel);padding:40px 32px 34px;position:relative;overflow:hidden;min-height:340px;display:flex;flex-direction:column;justify-content:space-between;
+  transform-style:preserve-3d;transition:background .4s;will-change:transform}
+.ev::after{content:'';position:absolute;inset:0;background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(0,240,255,.13),transparent 65%);opacity:0;transition:opacity .35s;pointer-events:none}
+.ev:hover::after{opacity:1}
+.ev .idx{font-size:.68rem;letter-spacing:.35em;color:var(--dim)}
+.ev h3{font-family:var(--font-d);font-size:1.7rem;font-weight:700;margin:18px 0 12px;text-transform:uppercase;line-height:1.05}
+.ev p{color:var(--dim);font-size:.88rem;line-height:1.65}
+.ev .tag{display:inline-block;margin-top:22px;font-size:.64rem;letter-spacing:.3em;text-transform:uppercase;color:var(--lime);
+  border:1px solid rgba(200,255,61,.4);padding:7px 14px;border-radius:99px}
+.ev .arrow{position:absolute;top:34px;right:30px;font-size:1.4rem;color:var(--neon);transform:translate(6px,-6px);opacity:0;transition:.35s}
+.ev:hover .arrow{transform:translate(0,0);opacity:1}
+
+/* ---------- timeline ---------- */
+#schedule{padding:14vh 0}
+.tl{position:relative;margin-top:70px;padding-left:2px}
+.tl::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:1px;background:#22222f}
+.tl .fill{position:absolute;left:11px;top:0;width:1px;height:0;background:linear-gradient(var(--neon),var(--pink))}
+.tl-item{position:relative;padding:0 0 64px 64px}
+.tl-item .dot{position:absolute;left:4px;top:8px;width:15px;height:15px;border-radius:50%;border:2px solid var(--dim);background:var(--bg);transition:.4s}
+.tl-item.on .dot{border-color:var(--neon);box-shadow:0 0 18px var(--neon);background:var(--neon)}
+.tl-item .time{font-size:.72rem;letter-spacing:.35em;color:var(--neon);text-transform:uppercase}
+.tl-item h4{font-family:var(--font-d);font-size:clamp(1.3rem,2.6vw,2rem);font-weight:700;margin:10px 0 8px;text-transform:uppercase}
+.tl-item p{color:var(--dim);font-size:.9rem;max-width:520px;line-height:1.65}
+
+/* ---------- speakers ---------- */
+#speakers{padding:14vh 0 18vh}
+.spk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:2px;margin-top:64px;background:#1c1c28;border:1px solid #1c1c28}
+.spk{background:var(--panel);padding:34px 26px;position:relative;overflow:hidden;transition:background .4s}
+.spk:hover{background:#101018}
+.spk .avatar{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;font-family:var(--font-d);font-weight:800;font-size:1.5rem;
+  margin-bottom:22px;position:relative;z-index:1}
+.spk h5{font-family:var(--font-d);font-size:1.15rem;font-weight:700}
+.spk .role{color:var(--dim);font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;margin-top:6px}
+.spk .glow{position:absolute;top:-40px;right:-40px;width:150px;height:150px;border-radius:50%;filter:blur(50px);opacity:.25;transition:opacity .4s}
+.spk:hover .glow{opacity:.6}
+
+/* ---------- footer ---------- */
+footer{position:relative;z-index:2;border-top:1px solid #1c1c28;background:rgba(5,5,8,.75);backdrop-filter:blur(8px);padding:80px 0 40px;overflow:hidden}
+footer .cta{font-family:var(--font-d);font-weight:800;font-size:clamp(2.6rem,9vw,7.5rem);text-transform:uppercase;line-height:.95;text-align:center}
+footer .cta a{color:transparent;-webkit-text-stroke:1.5px var(--ink);text-decoration:none;transition:.4s;display:inline-block}
+footer .cta a:hover{color:var(--neon);-webkit-text-stroke:1.5px var(--neon);transform:skewX(-6deg)}
+footer .row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:70px;color:var(--dim);font-size:.72rem;letter-spacing:.25em;text-transform:uppercase}
+
+@media(max-width:820px){
+  #about .grid{grid-template-columns:1fr}
+  nav ul{display:none}
+  .hud.tr{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div><div id="cursor-ring"></div>
+
+<div id="loader">
+  <div class="lg">NEXUS</div>
+  <div id="bar"><i></i></div>
+  <div id="pct">0%</div>
+</div>
+
+<canvas id="gl"></canvas>
+
+<nav>
+  <a class="logo" href="#hero">NEXUS'26</a>
+  <ul>
+    <li><a href="#about" data-hover>About</a></li>
+    <li><a href="#events" data-hover>Events</a></li>
+    <li><a href="#schedule" data-hover>Schedule</a></li>
+    <li><a href="#speakers" data-hover>Speakers</a></li>
+    <li><a href="#footer" data-hover>Register</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hud tl">Techfest // 2026<br>IIT Bombay · Mumbai</div>
+  <div class="hud tr">March 13 — 15<br>72 Hours · Non-stop</div>
+  <div class="wrap">
+    <div class="kicker">The future, compiled</div>
+    <h1 class="titan" id="titan"><span class="l">N</span><span class="l">E</span><span class="l">X</span><span class="l stroke">U</span><span class="l">S</span></h1>
+    <div class="hero-sub">
+      <a class="btn magnetic" href="#footer" data-hover><span>Register Now</span></a>
+      <p>Three days of code, chaos and creation. India's most immersive technology festival — where hackers, builders and dreamers collide in one orbital arena.</p>
+    </div>
+  </div>
+  <div class="scroll-hint">Scroll to enter<i></i></div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee"><div class="track" id="mtrack">
+  <span>Hackathon <em>✦</em> Robowars <em>✦</em> AI Summit <em>✦</em> Drone Racing <em>✦</em> CTF <em>✦</em> Design Sprint <em>✦</em> </span>
+  <span>Hackathon <em>✦</em> Robowars <em>✦</em> AI Summit <em>✦</em> Drone Racing <em>✦</em> CTF <em>✦</em> Design Sprint <em>✦</em> </span>
+</div></div>
+
+<!-- ABOUT -->
+<section id="about"><div class="wrap">
+  <div class="kicker reveal">01 — The Arena</div>
+  <h2 class="reveal">Where <span class="outline">code</span><br>becomes culture</h2>
+  <div class="grid">
+    <p class="big reveal">NEXUS is not a fest. It's a <b>collision chamber</b> for 40,000 builders — 48-hour hackathons, battle bots, orbital drone races and an AI summit that rewires how you think about machines.</p>
+    <div class="stats">
+      <div class="stat reveal"><div class="n" data-count="40000">0</div><div class="t">Attendees</div></div>
+      <div class="stat reveal"><div class="n"><em data-count="120">0</em>+</div><div class="t">Events</div></div>
+      <div class="stat reveal"><div class="n">₹<em data-count="50">0</em>L</div><div class="t">Prize Pool</div></div>
+      <div class="stat reveal"><div class="n" data-count="30">0</div><div class="t">Countries</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- EVENTS -->
+<section id="events"><div class="wrap">
+  <div class="head">
+    <div>
+      <div class="kicker reveal">02 — Battlegrounds</div>
+      <h2 class="reveal">Choose your<br><span class="outline">weapon</span></h2>
+    </div>
+    <a class="btn magnetic reveal" href="#footer" data-hover><span>All Events →</span></a>
+  </div>
+  <div class="ev-grid" id="evgrid">
+    <div class="ev reveal" data-hover><span class="arrow">↗</span><div><div class="idx">E/01</div><h3>HackVerse</h3><p>The flagship 48-hour hackathon. 2,000 teams, one arena, infinite caffeine. Ship something impossible.</p></div><span class="tag">₹12L Prize</span></div>
+    <div class="ev reveal" data-hover><span class="arrow">↗</span><div><div class="idx">E/02</div><h3>Robowars</h3><p>15kg steel gladiators in a bulletproof cage. Sparks fly, shields break, only one bot leaves standing.</p></div><span class="tag">Combat</span></div>
+    <div class="ev reveal" data-hover><span class="arrow">↗</span><div><div class="idx">E/03</div><h3>Neural Nexus</h3><p>A two-day AI summit with the researchers building the models you'll use in 2030. Demos, debates, dark tech.</p></div><span class="tag">Summit</span></div>
+    <div class="ev reveal" data-hover><span class="arrow">↗</span><div><div class="idx">E/04</div><h3>SkyRush</h3><p>FPV drone racing through a neon-lit obstacle canyon at 140 km/h. Pilots wanted. Nerves optional.</p></div><span class="tag">Racing</span></div>
+    <div class="ev reveal" data-hover><span class="arrow">↗</span><div><div class="idx">E/05</div><h3>Cipher Hunt</h3><p>A 24-hour capture-the-flag across networks, binaries and broken crypto. The leaderboard never sleeps.</p></div><span class="tag">Security</span></div>
+    <div class="ev reveal" data-hover><span class="arrow">↗</span><div><div class="idx">E/06</div><h3>Design Forge</h3><p>A sprint where pixels fight physics. Prototype, pressure-test and pitch a product in 12 hours flat.</p></div><span class="tag">Sprint</span></div>
+  </div>
+</div></section>
+
+<!-- SCHEDULE -->
+<section id="schedule"><div class="wrap">
+  <div class="kicker reveal">03 — Mission Log</div>
+  <h2 class="reveal">Three days.<br><span class="outline">Zero gravity.</span></h2>
+  <div class="tl" id="tl">
+    <div class="fill" id="tlfill"></div>
+    <div class="tl-item reveal"><div class="dot"></div><div class="time">Day 01 · 09:00</div><h4>Ignition Ceremony</h4><p>Opening keynote, arena reveal and the first commit of HackVerse. 40,000 people. One countdown.</p></div>
+    <div class="tl-item reveal"><div class="dot"></div><div class="time">Day 01 · 18:00</div><h4>SkyRush Qualifiers</h4><p>128 drone pilots enter the canyon. Only 16 make the night finals under the lights.</p></div>
+    <div class="tl-item reveal"><div class="dot"></div><div class="time">Day 02 · 10:00</div><h4>Robowars — Group Stage</h4><p>Steel meets steel. Flippers, spinners and wedges battle for the semi-final slots.</p></div>
+    <div class="tl-item reveal"><div class="dot"></div><div class="time">Day 02 · 15:00</div><h4>Neural Nexus Keynotes</h4><p>Foundation-model builders, robot-embodiment researchers and one very opinionated AGI debate.</p></div>
+    <div class="tl-item reveal"><div class="dot"></div><div class="time">Day 03 · 12:00</div><h4>HackVerse Finale</h4><p>Top 10 teams demo live on the main stage. Judges vote, crowd roars, legends are minted.</p></div>
+    <div class="tl-item reveal"><div class="dot"></div><div class="time">Day 03 · 21:00</div><h4>Orbit Night</h4><p>Closing concert, laser symphony and the afterparty that campus whispers about all year.</p></div>
+  </div>
+</div></section>
+
+<!-- SPEAKERS -->
+<section id="speakers"><div class="wrap">
+  <div class="kicker reveal">04 — Signal Sources</div>
+  <h2 class="reveal">Voices from<br>the <span class="outline">frontier</span></h2>
+  <div class="spk-grid">
+    <div class="spk reveal" data-hover><div class="glow" style="background:var(--neon)"></div><div class="avatar" style="background:rgba(0,240,255,.12);color:var(--neon);border:1px solid rgba(0,240,255,.4)">AK</div><h5>Dr. Aarav Khanna</h5><div class="role">Chief Scientist · Quantum Systems</div></div>
+    <div class="spk reveal" data-hover><div class="glow" style="background:var(--pink)"></div><div class="avatar" style="background:rgba(255,46,136,.12);color:var(--pink);border:1px solid rgba(255,46,136,.4)">MR</div><h5>Mira Reddy</h5><div class="role">Founder · Autonomous Robotics</div></div>
+    <div class="spk reveal" data-hover><div class="glow" style="background:var(--violet)"></div><div class="avatar" style="background:rgba(139,92,246,.12);color:var(--violet);border:1px solid rgba(139,92,246,.4)">JO</div><h5>Jonas Okafor</h5><div class="role">Distinguished Eng · LLM Infra</div></div>
+    <div class="spk reveal" data-hover><div class="glow" style="background:var(--lime)"></div><div class="avatar" style="background:rgba(200,255,61,.12);color:var(--lime);border:1px solid rgba(200,255,61,.4)">SL</div><h5>Sana Lindqvist</h5><div class="role">Security Researcher · CTF Legend</div></div>
+  </div>
+</div></section>
+
+<!-- FOOTER -->
+<footer id="footer">
+  <div class="wrap">
+    <div class="cta reveal"><a href="#" data-hover>Get your pass ↗</a></div>
+    <div class="row">
+      <div>NEXUS '26 · Techfest</div>
+      <div>hello@nexusfest.in</div>
+      <div>© 2026 · Built at lightspeed</div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+/* ================= LOADER — runs first, depends on nothing else ================= */
+const bar = document.querySelector('#bar i'), pct = document.getElementById('pct'), loader = document.getElementById('loader');
+let lp = 0;
+const li = setInterval(()=>{
+  lp = Math.min(100, lp + Math.random()*14);
+  bar.style.width = lp + '%';
+  pct.textContent = Math.floor(lp) + '%';
+  if (lp >= 100){
+    clearInterval(li);
+    setTimeout(finishLoad, 350);
+  }
+}, 120);
+/* safety net: never let the loader hang forever, whatever else fails */
+setTimeout(()=>{ if (!loader.classList.contains('done')) finishLoad(); }, 6000);
+
+function finishLoad(){
+  if (loader.classList.contains('done')) return;
+  loader.classList.add('done');
+  try{
+    if (typeof gsap !== 'undefined'){
+      gsap.fromTo('#titan .l', {y:120, opacity:0, rotateX:-90}, {y:0, opacity:1, rotateX:0, duration:1.1, stagger:.07, ease:'expo.out'});
+      gsap.fromTo('.hero-sub, .kicker, .hud', {opacity:0, y:30}, {opacity:1, y:0, duration:1, stagger:.12, delay:.5, ease:'power3.out'});
+    } else {
+      document.querySelectorAll('#titan .l, .hero-sub, .kicker, .hud').forEach(el=>{el.style.opacity=1;});
+    }
+  }catch(e){ console.warn('hero reveal failed', e); }
+}
+
+/* ================= GSAP / SCROLLTRIGGER — guarded ================= */
+let gsapOK = false;
+try{
+  if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined'){
+    gsap.registerPlugin(ScrollTrigger);
+    gsapOK = true;
+  }
+}catch(e){ console.warn('gsap unavailable', e); }
+
+if (!gsapOK){
+  /* without gsap, make sure content is still visible instead of stuck at opacity:0 */
+  document.querySelectorAll('.reveal').forEach(el=>{el.style.opacity=1; el.style.transform='none';});
+}
+
+/* ================= THREE.JS SCENE — optional, degrades gracefully ================= */
+try{
+  if (typeof THREE === 'undefined') throw new Error('THREE not loaded');
+  const canvas = document.getElementById('gl');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050508, 0.045);
+  const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 9);
+
+  const NEON = 0x00f0ff, VIOLET = 0x8b5cf6, PINK = 0xff2e88;
+  scene.add(new THREE.AmbientLight(0x223344, 1.4));
+  const key = new THREE.PointLight(NEON, 2.2, 40); key.position.set(6, 5, 6); scene.add(key);
+  const fill = new THREE.PointLight(PINK, 1.6, 40); fill.position.set(-7, -3, 4); scene.add(fill);
+  const rim  = new THREE.PointLight(VIOLET, 1.4, 40); rim.position.set(0, 6, -6); scene.add(rim);
+
+  const coreGeo = new THREE.IcosahedronGeometry(2.1, 1);
+  const coreBase = coreGeo.attributes.position.array.slice();
+  const core = new THREE.Mesh(coreGeo, new THREE.MeshStandardMaterial({
+    color:0x0a0a14, metalness:.9, roughness:.25, flatShading:true,
+    emissive:0x00f0ff, emissiveIntensity:.12
+  }));
+  scene.add(core);
+  const wire = new THREE.Mesh(new THREE.IcosahedronGeometry(2.75, 1),
+    new THREE.MeshBasicMaterial({color:NEON, wireframe:true, transparent:true, opacity:.22}));
+  scene.add(wire);
+  const wire2 = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 0),
+    new THREE.MeshBasicMaterial({color:VIOLET, wireframe:true, transparent:true, opacity:.12}));
+  scene.add(wire2);
+
+  const sats = [];
+  for (let i=0;i<7;i++){
+    const g = new THREE.OctahedronGeometry(.28 + Math.random()*.22, 0);
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+      color:0x111122, metalness:.8, roughness:.3,
+      emissive:[NEON,PINK,VIOLET][i%3], emissiveIntensity:.7
+    }));
+    scene.add(m);
+    sats.push({m, r:4.2+Math.random()*1.8, sp:.25+Math.random()*.4, ph:Math.random()*Math.PI*2, tilt:Math.random()*.9});
+  }
+
+  const pCount = 1600;
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(pCount*3), pSpd = new Float32Array(pCount);
+  for (let i=0;i<pCount;i++){
+    pPos[i*3]=(Math.random()-.5)*46; pPos[i*3+1]=(Math.random()-.5)*30; pPos[i*3+2]=(Math.random()-.5)*30;
+    pSpd[i]=.2+Math.random()*.8;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
+  const points = new THREE.Points(pGeo, new THREE.PointsMaterial({color:NEON, size:.035, transparent:true, opacity:.7}));
+  scene.add(points);
+
+  let scrollP = 0;
+  let mouseX = 0, mouseY = 0;
+  addEventListener('mousemove', e=>{
+    mouseX = (e.clientX/innerWidth - .5)*2;
+    mouseY = (e.clientY/innerHeight - .5)*2;
+  });
+  addEventListener('scroll', ()=>{
+    scrollP = scrollY / (document.body.scrollHeight - innerHeight);
+  }, {passive:true});
+
+  const clock = new THREE.Clock();
+  function tick(){
+    requestAnimationFrame(tick);
+    const t = clock.getElapsedTime();
+
+    const pos = coreGeo.attributes.position;
+    for (let i=0;i<pos.count;i++){
+      const ix=i*3, x=coreBase[ix], y=coreBase[ix+1], z=coreBase[ix+2];
+      const n = Math.sin(x*1.4 + t*1.2) * Math.cos(y*1.4 + t*.9) * Math.sin(z*1.4 + t*1.1);
+      const s = 1 + n * (0.12 + 0.1*Math.sin(t*.5));
+      pos.array[ix]=x*s; pos.array[ix+1]=y*s; pos.array[ix+2]=z*s;
+    }
+    pos.needsUpdate = true;
+    coreGeo.computeVertexNormals();
+
+    core.rotation.y = t*.15; core.rotation.x = Math.sin(t*.2)*.25;
+    wire.rotation.y = -t*.1; wire.rotation.z = t*.07;
+    wire2.rotation.y = t*.06; wire2.rotation.x = -t*.04;
+
+    sats.forEach(s=>{
+      const a = t*s.sp + s.ph;
+      s.m.position.set(Math.cos(a)*s.r, Math.sin(a*.8)*s.r*.4*Math.sin(s.tilt), Math.sin(a)*s.r*.6);
+      s.m.rotation.x = t*1.3; s.m.rotation.y = t*.9;
+    });
+
+    const pp = pGeo.attributes.position;
+    for (let i=0;i<pCount;i++){
+      pp.array[i*3+1] += Math.sin(t + i)*.0008*pSpd[i];
+      pp.array[i*3] += .0035*pSpd[i];
+      if (pp.array[i*3] > 23) pp.array[i*3] = -23;
+    }
+    pp.needsUpdate = true;
+
+    const p = scrollP;
+    const camZ = 9 - p*13;
+    const camY = Math.sin(p*Math.PI)*1.2 - p*2.5;
+    const camX = Math.sin(p*Math.PI*2)*2.2;
+    camera.position.x += (camX + mouseX*.8 - camera.position.x)*.05;
+    camera.position.y += (-camY + mouseY*.6 - camera.position.y)*.05;
+    camera.position.z += (camZ - camera.position.z)*.06;
+    camera.lookAt(0, 0, -3);
+
+    const cs = Math.max(0.35, 1 - p*1.1);
+    core.scale.setScalar(cs);
+    wire.scale.setScalar(cs); wire2.scale.setScalar(cs);
+    core.position.z = -p*6;
+    wire.position.z = -p*6; wire2.position.z = -p*6;
+
+    renderer.render(scene, camera);
+  }
+  tick();
+
+  addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}catch(e){
+  console.warn('3D scene disabled:', e);
+  const glCanvas = document.getElementById('gl');
+  if (glCanvas) glCanvas.style.display = 'none';
+  document.body.style.background = 'radial-gradient(ellipse at 50% 20%, #10101c, #050508 70%)';
+}
+
+/* ================= SCROLL-TRIGGERED ANIMATIONS — guarded, only if gsap loaded ================= */
+if (gsapOK){
+try{
+  const letters = document.querySelectorAll('#titan .l');
+  const scatters = [
+    {x:-260,y:-180,r:-40},{x:-120,y:220,r:25},{x:40,y:-260,r:60},
+    {x:160,y:200,r:-30},{x:300,y:-140,r:45}
+  ];
+  letters.forEach((l,i)=>{
+    gsap.to(l, {
+      x:scatters[i].x, y:scatters[i].y, rotate:scatters[i].r,
+      opacity:0, filter:'blur(6px)',
+      scrollTrigger:{trigger:'#hero', start:'top top', end:'bottom top', scrub:1.2}
+    });
+  });
+  gsap.to('.hero-sub, #hero .kicker, #hero .hud, .scroll-hint', {
+    opacity:0, y:-60,
+    scrollTrigger:{trigger:'#hero', start:'top top', end:'60% top', scrub:1}
+  });
+
+  document.querySelectorAll('.reveal').forEach(el=>{
+    gsap.to(el, {opacity:1, y:0, duration:1.1, ease:'power3.out',
+      scrollTrigger:{trigger:el, start:'top 88%'}});
+  });
+
+  document.querySelectorAll('[data-count]').forEach(el=>{
+    const target = +el.dataset.count;
+    const obj = {v:0};
+    ScrollTrigger.create({trigger:el, start:'top 85%', once:true, onEnter:()=>{
+      gsap.to(obj, {v:target, duration:2, ease:'power2.out', onUpdate:()=>{
+        el.textContent = Math.floor(obj.v).toLocaleString('en-IN');
+      }});
+    }});
+  });
+
+  document.querySelectorAll('.ev').forEach(card=>{
+    card.addEventListener('mousemove', e=>{
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX-r.left)/r.width, py = (e.clientY-r.top)/r.height;
+      card.style.setProperty('--mx', px*100+'%');
+      card.style.setProperty('--my', py*100+'%');
+      gsap.to(card, {rotateY:(px-.5)*10, rotateX:(0.5-py)*10, scale:1.02, duration:.4, ease:'power2.out', transformPerspective:800});
+    });
+    card.addEventListener('mouseleave', ()=>{
+      gsap.to(card, {rotateY:0, rotateX:0, scale:1, duration:.6, ease:'elastic.out(1,.5)'});
+    });
+  });
+
+  gsap.to('#tlfill', {height:'100%', ease:'none',
+    scrollTrigger:{trigger:'#tl', start:'top 70%', end:'bottom 55%', scrub:.6}});
+  document.querySelectorAll('.tl-item').forEach(item=>{
+    ScrollTrigger.create({trigger:item, start:'top 68%',
+      onEnter:()=>item.classList.add('on'), onLeaveBack:()=>item.classList.remove('on')});
+  });
+
+  document.querySelectorAll('.magnetic').forEach(btn=>{
+    btn.addEventListener('mousemove', e=>{
+      const r = btn.getBoundingClientRect();
+      gsap.to(btn, {x:(e.clientX-r.left-r.width/2)*.35, y:(e.clientY-r.top-r.height/2)*.35, duration:.4});
+    });
+    btn.addEventListener('mouseleave', ()=>gsap.to(btn, {x:0, y:0, duration:.7, ease:'elastic.out(1,.4)'}));
+  });
+}catch(e){ console.warn('scroll animations partially failed', e); }
+}
+
+/* ================= CUSTOM CURSOR — guarded, skips itself on touch ================= */
+try{
+  if (matchMedia('(hover:hover)').matches){
+    const cur = document.getElementById('cursor'), ring = document.getElementById('cursor-ring');
+    let rx=0, ry=0, tx=0, ty=0;
+    addEventListener('mousemove', e=>{
+      tx=e.clientX; ty=e.clientY;
+      cur.style.left = tx+'px'; cur.style.top = ty+'px';
+    });
+    (function ringLoop(){
+      rx += (tx-rx)*.14; ry += (ty-ry)*.14;
+      ring.style.left = rx+'px'; ring.style.top = ry+'px';
+      requestAnimationFrame(ringLoop);
+    })();
+    document.querySelectorAll('[data-hover]').forEach(el=>{
+      el.addEventListener('mouseenter', ()=>cur.classList.add('big'));
+      el.addEventListener('mouseleave', ()=>cur.classList.remove('big'));
+    });
+  }
+}catch(e){ console.warn('cursor init failed', e); }
+
+/* smooth anchor scroll */
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click', e=>{
+    const id = a.getAttribute('href');
+    if (id.length > 1 && document.querySelector(id)){
+      e.preventDefault();
+      document.querySelector(id).scrollIntoView({behavior:'smooth'});
+    }
+  });
+});
+</script>
+</body>
+</html>
